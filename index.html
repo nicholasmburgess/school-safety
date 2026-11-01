@@ -20823,30 +20823,40 @@ async function buildReportDoc(docx, CL, S, getPhoto) {
   const photosFor = (cid, ref) => Object.values(S.photos || {}).filter((r) => r.cid === cid && r.ref === ref).sort((a, b) => a.t - b.t).map((r) => r.pid);
 
   async function photoParas(ids) {
-    const out = [];
-    const imgs = [];
+    const none = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
+    const nob = { top: none, bottom: none, left: none, right: none };
+    const items = [];
     for (let n = 0; n < ids.length; n++) {
       const ph = await getPhoto(ids[n]);
       if (!ph || !ph.data || !ph.width || !ph.height) continue;
-      const w = 155, h = Math.max(1, Math.round((w * ph.height) / ph.width));
-      imgs.push([new TextRun({ text: `${n + 1} `, bold: true, size: 16, font: FONT }), new ImageRun({ data: ph.data, type: "jpg", transformation: { width: w, height: h } })]);
-    }
-    for (let i = 0; i < imgs.length; i += 2) {
-      const kids = [];
-      imgs.slice(i, i + 2).forEach((im, j) => { if (j) kids.push(new TextRun({ text: "   ", font: FONT })); kids.push(...im); });
-      out.push(new Paragraph({ spacing: { before: 60, after: 60 }, children: kids }));
-    }
-    ids.forEach((id, n) => {
-      const rec = (S.photos || {})[id];
+      const w = 160, h = Math.max(1, Math.round((w * ph.height) / ph.width));
+      const rec = (S.photos || {})[ids[n]];
       const L = rec && rec.loc;
-      if (!L || typeof L.lat !== "number" || typeof L.lng !== "number") return;
-      const txt = `${L.lat.toFixed(5)}, ${L.lng.toFixed(5)}`;
-      out.push(new Paragraph({ spacing: { after: 40 }, children: [
-        new TextRun({ text: `Photo ${n + 1} location${L.src === "pick" ? " (when added)" : ""}: `, size: 16, font: FONT }),
-        new ExternalHyperlink({ link: `https://maps.google.com/?q=${L.lat.toFixed(6)},${L.lng.toFixed(6)}`, children: [new TextRun({ text: txt, size: 16, font: FONT, color: "0563C1", underline: {} })] }),
-        new TextRun({ text: L.acc ? ` (accuracy about ${L.acc} m)` : "", size: 16, font: FONT }),
-      ] }));
-    });
+      const kids = [new Paragraph({ spacing: { after: 20 }, children: [new ImageRun({ data: ph.data, type: "jpg", transformation: { width: w, height: h } })] })];
+      const cap = (runs) => kids.push(new Paragraph({ spacing: { after: 10 }, children: runs }));
+      const t = (text, o = {}) => new TextRun({ text, size: 15, font: FONT, bold: o.bold });
+      cap([t(`Photo ${n + 1}`, { bold: true }), ...(L && L.src === "pick" ? [t(" (location when added)")] : [])]);
+      if (L && typeof L.lat === "number" && typeof L.lng === "number") {
+        cap([t("Latitude: ", { bold: true }), t(L.lat.toFixed(6))]);
+        cap([t("Longitude: ", { bold: true }), t(L.lng.toFixed(6))]);
+        if (L.acc) cap([t(`Accuracy: about ${L.acc} m`)]);
+        const url = `https://www.google.com/maps?q=${L.lat.toFixed(6)},${L.lng.toFixed(6)}`;
+        cap([new ExternalHyperlink({ link: url, children: [new TextRun({ text: "Google Maps link", size: 15, font: FONT, color: "0563C1", underline: {} })] })]);
+      } else cap([t("Location not recorded")]);
+      items.push(kids);
+    }
+    const out = [];
+    const CWd = 2500;
+    for (let i = 0; i < items.length; i += 2) {
+      const pair = items.slice(i, i + 2);
+      while (pair.length < 2) pair.push([new Paragraph({ children: [] })]);
+      out.push(new Table({
+        width: { size: CWd * 2, type: WidthType.DXA }, columnWidths: [CWd, CWd],
+        borders: { ...nob, insideHorizontal: none, insideVertical: none },
+        rows: [new TableRow({ cantSplit: true, children: pair.map((k) => new TableCell({ width: { size: CWd, type: WidthType.DXA }, borders: nob, margins: { top: 40, bottom: 40, left: 40, right: 80 }, children: k })) })],
+      }));
+      out.push(new Paragraph({ spacing: { after: 20 }, children: [] }));
+    }
     return out;
   }
 
