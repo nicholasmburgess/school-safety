@@ -20691,6 +20691,35 @@ function buildFullPdf(jsPDF, CL, S) {
   const txt = (t, x, yy, o = {}) => { doc.setFont("helvetica", o.bold ? "bold" : "normal"); doc.setFontSize(o.size || 9); setC(o.color || [31, 41, 51]); doc.text(clean(t), x, yy); };
   const wrap = (t, w, size, bold) => { doc.setFont("helvetica", bold ? "bold" : "normal"); doc.setFontSize(size); return doc.splitTextToSize(clean(t), w); };
   const LH = 11;
+  const photoList = (cid, ref) => Object.values(S.photos || {}).filter((r) => r.cid === cid && r.ref === ref && r.img).sort((a, b) => a.t - b.t);
+  function drawPhotos(list) {
+    const PWd = 150, GAP = 12, PER = 3, x0 = col.item;
+    for (let i = 0; i < list.length; i += PER) {
+      const row = list.slice(i, i + PER).map((r, j) => {
+        let ip = null; try { ip = doc.getImageProperties(r.img); } catch (e) { ip = null; }
+        const h = ip ? Math.min(150, Math.round(PWd * ip.height / ip.width)) : 0;
+        const w = ip && h === 150 ? Math.round(150 * ip.width / ip.height) : PWd;
+        const L = r.loc && typeof r.loc.lat === "number" && typeof r.loc.lng === "number" ? r.loc : null;
+        const caps = [[`Photo ${i + j + 1}` + (L && L.src === "pick" ? " (location when added)" : ""), true]];
+        if (L) { caps.push([`Latitude: ${L.lat.toFixed(6)}`]); caps.push([`Longitude: ${L.lng.toFixed(6)}`]); if (L.acc) caps.push([`Accuracy: about ${L.acc} m`]); caps.push(["Google Maps link", false, `https://www.google.com/maps?q=${L.lat.toFixed(6)},${L.lng.toFixed(6)}`]); }
+        else caps.push(["Location not recorded"]);
+        return { r, h, w, caps };
+      });
+      const rh = Math.max(...row.map((p) => p.h)) + 4 + Math.max(...row.map((p) => p.caps.length)) * 10 + 6;
+      need(rh);
+      row.forEach((p, j) => {
+        const x = x0 + j * (PWd + GAP);
+        if (p.h) { try { doc.addImage(p.r.img, "JPEG", x, y, p.w, p.h); } catch (e) {} }
+        let cy = y + p.h + 11;
+        p.caps.forEach(([t, b, url]) => {
+          if (url) { doc.setFont("helvetica", "normal"); doc.setFontSize(8); setC([5, 99, 193]); doc.textWithLink(t, x, cy, { url }); const tw = doc.getTextWidth(t); doc.setDrawColor(5, 99, 193); doc.line(x, cy + 1, x + tw, cy + 1); }
+          else txt(t, x, cy, { bold: b, size: 8 });
+          cy += 10;
+        });
+      });
+      y += rh;
+    }
+  }
 
   txt("Safety Inspection: Completed Checklists", M, y + 14, { bold: true, size: 18 }); y += 28;
   txt("Full record of responses (Yes / No / N/A) for review.", M, y + 4, { size: 10, color: [82, 96, 109] }); y += 20;
@@ -20748,8 +20777,6 @@ function buildFullPdf(jsPDF, CL, S) {
           if (d.urgent) extra.push(["URGENT: escalate to principal", true, [179, 38, 30]]);
           if ((d.note || "").trim()) wrap("Finding: " + d.note, CW - 38, 8.5).forEach((l) => extra.push([l, false, [31, 41, 51]]));
           if ((d.fix || "").trim()) wrap("Solution: " + d.fix, CW - 38, 8.5).forEach((l) => extra.push([l, false, [31, 41, 51]]));
-          const np = Object.values(S.photos || {}).filter((p) => p.cid === r.def.id && p.ref === k).length;
-          if (np) extra.push([`${np} photo${np > 1 ? "s" : ""} (see Word report)`, false, [82, 96, 109]]);
         }
         const h = Math.max(il.length * LH, LH) + extra.length * LH + 6;
         need(h);
@@ -20763,6 +20790,7 @@ function buildFullPdf(jsPDF, CL, S) {
         let ey = y + 11 + Math.max(il.length, 1) * LH;
         extra.forEach(([l, b, c]) => { txt(l, col.item, ey, { bold: b, size: 8.5, color: c }); ey += LH; });
         y += h;
+        if (v === "n") { const pl = photoList(r.def.id, k); if (pl.length) { y += 4; drawPhotos(pl); } }
       }
       if (sec.note) { const nl = wrap(sec.note, CW, 8, false); need(nl.length * 10 + 4); nl.forEach((l) => { txt(l, M, y + 9, { size: 8, color: [82, 96, 109] }); y += 10; }); y += 4; }
       y += 6;
@@ -20776,6 +20804,7 @@ function buildFullPdf(jsPDF, CL, S) {
         need(ls.length * LH + 8);
         ls.forEach((l, i) => txt(l, M + 4, y + 11 + i * LH, { color: i === 0 && e.urgent ? [179, 38, 30] : undefined, bold: i === 0 && e.urgent })); y += ls.length * LH + 8;
         doc.setDrawColor(210); doc.line(M, y - 2, M + CW, y - 2);
+        const pl = photoList(r.def.id, "x:" + e.id); if (pl.length) { drawPhotos(pl); y += 4; }
       });
     }
   }
