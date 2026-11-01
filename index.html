@@ -90,6 +90,7 @@ textarea{resize:vertical;line-height:1.4}
 .thumb img{width:100%;height:100%;object-fit:cover;display:block}
 .thumb{position:relative}
 .gps{position:absolute;left:4px;bottom:4px;font:600 .62rem var(--font-body);background:var(--accent);color:var(--on-accent);padding:1px 5px;border-radius:4px}
+#lb .gps.no,.gps.no{background:#b3261e;color:#fff}
 #lbloc{color:#e6edf0;margin:0;text-align:center;padding:0 8px}
 #lbloc a{color:#9fd8ea;margin-left:6px}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 16px;border-radius:6px;border:1px solid var(--line);background:var(--surface);font-weight:600}
@@ -130,11 +131,11 @@ html{background:var(--bg)}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){color-scheme:dark}}
 </style></head><body>
 <div id="top">
-  <div class="wrap bar"><h1 class="brand">School Safety Inspection</h1><span id="status" class="chip busy">Loading…</span></div>
+  <div class="wrap bar"><h1 class="brand">School Safety Inspection</h1><span id="status" class="chip busy">Loading…</span><span id="gps" class="chip busy">GPS…</span></div>
   <nav class="wrap" id="tabs" aria-label="Checklists"></nav>
 </div>
 <main id="main" class="wrap"></main>
-<div id="lb" hidden><img id="lbimg" alt="Photo"><p id="lbloc"></p><div class="acts"><button class="btn" data-act="lbclose" type="button">Close</button><button class="btn danger" id="lbrm" data-act="lbremove" type="button">Remove photo</button></div></div>
+<div id="lb" hidden><img id="lbimg" alt="Photo"><p id="lbloc"></p><button class="btn" id="lbadd" data-act="addloc" type="button" hidden>Add my current location</button><div class="acts"><button class="btn" data-act="lbclose" type="button">Close</button><button class="btn danger" id="lbrm" data-act="lbremove" type="button">Remove photo</button></div></div>
 <div id="toast" hidden></div>
 <input type="file" id="fcam" accept="image/*" capture="environment" hidden>
 <input type="file" id="frest" accept="application/json,.json" hidden>
@@ -21071,7 +21072,7 @@ function detailsHTML(){
    +'<h3 style="margin:0 0 10px">Checklists</h3><div class="go">'+go+'</div>'}
 
 function pbInner(cid,ref){
-  var ph=photosFor(cid,ref).map(function(r){return '<button type="button" class="thumb" data-act="thumb" data-pid="'+r.pid+'" data-asset="'+esc(r.asset)+'" aria-label="View photo"><img src="'+esc(r.img||urlFor(r.asset))+'" alt="Photo">'+(r.loc?'<span class="gps">GPS</span>':'')+'</button>'}).join('');
+  var ph=photosFor(cid,ref).map(function(r){return '<button type="button" class="thumb" data-act="thumb" data-pid="'+r.pid+'" data-asset="'+esc(r.asset)+'" aria-label="View photo"><img src="'+esc(r.img||urlFor(r.asset))+'" alt="Photo">'+(r.loc?'<span class="gps">GPS</span>':'<span class="gps no">NO GPS</span>')+'</button>'}).join('');
   var btns='<button type="button" class="btn" data-act="shot">Take photo</button><button type="button" class="btn" data-act="pick">Choose photos</button>';
   return ph+btns}
 function fieldsHTML(d){
@@ -21114,6 +21115,7 @@ function reportHTML(){
   if(t.open.length)h+='<p class="warnbox">Not finished: '+t.open.map(function(o){return esc(SHORT[o.id])+' ('+o.left+' left)'}).join(', ')+'.</p>';
   var untouched=CL.filter(function(d){var q=tally(d.id);return !q.na&&q.done===0&&!q.extra}).map(function(d){return SHORT[d.id]});
   if(untouched.length)h+='<p class="hint">Not started: '+esc(untouched.join(', '))+'. Mark a checklist as not applicable if you are skipping it.</p>';
+  var nol=Object.keys(S.photos).filter(function(k){return !S.photos[k].loc}).length;if(nol)h+='<p class="hint" style="color:var(--bad,#b3261e);font-weight:600">'+nol+' photo'+(nol===1?'':'s')+' without a location. Open the photo and tap Add my current location, or retake it.</p>';
   h+='<button type="button" class="btn primary" id="expbtn" data-act="export"'+(exporting?' disabled':'')+'>'+(exporting?'Preparing report…':'Export Word report')+'</button> <button type="button" class="btn" data-act="exportpdf"'+(exporting?' disabled':'')+'>Export PDF of full checklists</button> <button type="button" class="btn" data-act="exportphotos"'+(exporting?' disabled':'')+'>Export photos (zip)</button>'
    +'<p class="hint" style="margin-top:12px">One landscape Word file. It follows the checklist order and section headings, with a table of findings, suggested solutions and photos. Blank columns are left for the responsible person, date discussed and EduSafe Plus entry.</p></section>';
   h+='<section class="card"><h3 style="margin-bottom:10px">Progress</h3><div class="scroll"><table class="sum"><thead><tr><th>Checklist</th><th>Yes</th><th>No</th><th>N/A</th><th>Other</th></tr></thead><tbody>'
@@ -21130,7 +21132,7 @@ function reportHTML(){
   return h}
 
 /* ---------- events ---------- */
-function toast(msg,sticky){var t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toast.t);if(!sticky)toast.t=setTimeout(function(){t.hidden=true},3200)}
+function toast(msg,sticky,ms){var t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toast.t);if(!sticky)toast.t=setTimeout(function(){t.hidden=true},ms||3200)}
 function arm(key,fn){if(armed===key){armed=null;fn();return}armed=key;render(true);setTimeout(function(){if(armed===key){armed=null;if(view==='report')render(true)}},4000)}
 function refreshRow(cid,k){var parts=k.split('-'),el=document.getElementById('r-'+parts[0]+'-'+parts[1]);if(!el)return;el.outerHTML=rowHTML(cid,+parts[0],+parts[1]);var sp=document.getElementById('sp-'+parts[0]);if(sp)sp.textContent=secProg(cid,+parts[0])}
 function refreshPhotos(){
@@ -21150,13 +21152,14 @@ document.addEventListener('click',function(e){
       Object.keys(S.photos).forEach(function(p){if(S.photos[p].cid===cid&&S.photos[p].ref==='x:'+xid){delPhoto(p)}});touch(cid);render(true)}
     else{armed='x'+xid;b.textContent='Tap again to remove';b.classList.add('danger');setTimeout(function(){if(armed==='x'+xid){armed=null;b.textContent='Remove';b.classList.remove('danger')}},4000)}return}
   if(act==='shot'||act==='pick'){var pb=b.closest('[data-pb]');
-    target={cid:pb.dataset.cid,ref:pb.dataset.ref,src:act,pos:getPos()};(act==='shot'?$('#fcam'):$('#fpick')).click();return}
-  if(act==='thumb'){var lb=$('#lb');var pr=S.photos[b.dataset.pid]||{};$('#lbimg').src=pr.img||urlFor(b.dataset.asset);$('#lbloc').innerHTML=pr.loc?locHTML(pr.loc):'No location recorded for this photo';lb.dataset.pid=b.dataset.pid;$('#lbrm').textContent='Remove photo';lb.hidden=false;return}
+    var cf=curFix();if(!cf){toast(gpsHelp(),false,9000);gpsChip();return}target={cid:pb.dataset.cid,ref:pb.dataset.ref,src:act,pos:Promise.resolve(cf)};(act==='shot'?$('#fcam'):$('#fpick')).click();return}
+  if(act==='thumb'){var lb=$('#lb');var pr=S.photos[b.dataset.pid]||{};$('#lbimg').src=pr.img||urlFor(b.dataset.asset);$('#lbloc').innerHTML=pr.loc?locHTML(pr.loc):'No location recorded for this photo';$('#lbadd').hidden=!!pr.loc;lb.dataset.pid=b.dataset.pid;$('#lbrm').textContent='Remove photo';lb.hidden=false;return}
   if(act==='lbclose'){$('#lb').hidden=true;$('#lbimg').removeAttribute('src');return}
   if(act==='lbremove'){var lb2=$('#lb'),pid=lb2.dataset.pid;
     if(armed==='lb'){armed=null;delPhoto(pid);lb2.hidden=true;refreshPhotos()}
     else{armed='lb';b.textContent='Tap again to remove';setTimeout(function(){if(armed==='lb'){armed=null;b.textContent='Remove photo'}},4000)}return}
   if(act==='exportpdf'){exportPdf();return}
+  if(act==='addloc'){addLoc();return}
   if(act==='exportphotos'){exportPhotos();return}
   if(act==='backup'){backup();return}
   if(act==='restore'){arm('restore',function(){$('#frest').click()});return}
@@ -21179,6 +21182,15 @@ function writeField(t,f,val){
   else return;
   touch(cid)}
 
+var fix=null,gpsErr=0,watchId=null;
+function curFix(){return fix&&Date.now()-fix.t<180000?fix:null}
+function gpsHelp(){return gpsErr===1?'Location is blocked. Photos need a location. On the iPad: Settings > Privacy & Security > Location Services > Safari Websites > While Using the App, then reload this page and tap Allow.':'Waiting for a GPS fix. Photos need a location, so try again in a few seconds. Outdoors or near a window is faster.'}
+function gpsChip(){var el=$('#gps');if(!el)return;var f=curFix();if(f){el.className='chip ok';el.textContent='GPS ready'+(f.acc?' (about '+f.acc+' m)':'')}else if(gpsErr===1){el.className='chip bad';el.textContent='GPS blocked'}else{el.className='chip busy';el.textContent='GPS waiting…'}}
+function startWatch(){if(!navigator.geolocation||watchId!==null)return;
+  try{watchId=navigator.geolocation.watchPosition(function(p){gpsErr=0;fix={lat:p.coords.latitude,lng:p.coords.longitude,acc:Math.round(p.coords.accuracy||0),t:Date.now()};gpsChip()},function(e){gpsErr=e&&e.code||2;gpsChip()},{enableHighAccuracy:true,maximumAge:5000,timeout:20000})}catch(e){}
+  setInterval(gpsChip,15000)}
+function addLoc(){var lb=$('#lb'),pid=lb.dataset.pid,rec=S.photos[pid],f=curFix();if(!rec)return;if(!f){toast(gpsHelp(),false,9000);return}
+  rec.loc={lat:f.lat,lng:f.lng,acc:f.acc,src:'pick'};idbReq('photos','readwrite',function(s){return s.put(rec,pid)}).catch(noop);$('#lbloc').innerHTML=locHTML(rec.loc);$('#lbadd').hidden=true;refreshPhotos();toast('Current location added to this photo')}
 function getPos(){return new Promise(function(res){if(!navigator.geolocation){res(null);return}var done=false,tm=setTimeout(function(){if(!done){done=true;res(null)}},9000);
   try{navigator.geolocation.getCurrentPosition(function(p){if(done)return;done=true;clearTimeout(tm);res({lat:p.coords.latitude,lng:p.coords.longitude,acc:Math.round(p.coords.accuracy||0)})},function(){if(!done){done=true;clearTimeout(tm);res(null)}},{enableHighAccuracy:true,timeout:8000,maximumAge:20000})}catch(e){res(null)}})}
 function locHTML(L){if(!L)return '';var q=L.lat.toFixed(6)+','+L.lng.toFixed(6);return 'Location'+(L.src==='pick'?' when added':'')+': '+L.lat.toFixed(5)+', '+L.lng.toFixed(5)+(L.acc?' (about '+L.acc+' m)':'')+' <a href="https://maps.google.com/?q='+q+'" target="_blank" rel="noopener">Open in Maps</a>'}
@@ -21261,7 +21273,7 @@ function newInspection(){
   S.meta.date=iso(new Date());touch('meta');view='details';lsSet('insp-view',view);render(false);toast('Ready for a new inspection')}
 
 /* ---------- startup ---------- */
-render(false);setStatus();
+render(false);setStatus();startWatch();gpsChip();
 openDB().then(function(d){idb=d;if(!d)return [];return idbReq('photos','readonly',function(s){return s.getAll()})}).then(function(list){(list||[]).forEach(function(r){if(r&&r.pid)S.photos[r.pid]=r});refreshPhotos()}).catch(noop);
 try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(noop)}catch(e){}
 try{if('serviceWorker' in navigator&&location.protocol.indexOf('http')===0)navigator.serviceWorker.register('sw.js').catch(noop)}catch(e){}
