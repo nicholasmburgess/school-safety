@@ -23407,7 +23407,7 @@ async function buildReportDoc(docx, CL, S, getPhoto) {
   const urgentCount = active.reduce((a, r) => a + r.urgent, 0);
 
   const children = [];
-  children.push(new Paragraph({ spacing: { after: 40 }, children: [new TextRun({ text: "Safety Inspection: Items Not Up to Standard", bold: true, size: 40, font: FONT, color: "1F2933" })] }));
+  children.push(new Paragraph({ spacing: { after: 40 }, children: [new TextRun({ text: "DE OHSMS Quarterly Safety Inspection", bold: true, size: 40, font: FONT, color: "1F2933" })] }));
   children.push(p("Summary of items found below standard, for discussion and action.", { size: 20, color: "52606D", after: 160 }));
 
   const infoW = [2400, 12738];
@@ -23467,7 +23467,7 @@ async function buildReportDoc(docx, CL, S, getPhoto) {
 
   return new Document({
     creator: meta.by || "Inspector",
-    title: "Safety inspection: items not up to standard",
+    title: "DE OHSMS Quarterly Safety Inspection",
     styles: { default: { document: { run: { font: FONT, size: 20 } } } },
     sections: [{
       properties: { page: { size: { width: 11906, height: 16838, orientation: PageOrientation.LANDSCAPE }, margin: { top: 850, bottom: 850, left: 850, right: 850 } } },
