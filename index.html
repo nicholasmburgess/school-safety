@@ -23185,15 +23185,17 @@ SOFTWARE.
 function buildFullPdf(jsPDF, CL, S) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const PW = 595.28, PH = 841.89, M = 36, CW = PW - 2 * M;
+  const BANNER_H = PW * 218 / 2572, TOP = BANNER_H + 16; // Department banner across the top of every page
+  const BLUE = [0, 78, 168], DARK = [0, 76, 151], TITLE = [46, 116, 181], INK = [0, 0, 0];
   const meta = S.meta || {};
   const clean = (t) => String(t == null ? "" : t).replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/–|—/g, "-").replace(/…/g, "...").replace(/[^\n\x20-\x7E\xA0-\xFF]/g, "?");
   const fmtDate = (iso) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || ""); return m ? `${m[3]}/${m[2]}/${m[1]}` : (iso || ""); };
-  let y = M;
+  let y = TOP;
   const col = { ref: M, item: M + 38, ans: M + CW - 52 };
   const itemW = col.ans - col.item - 8;
-  const need = (h) => { if (y + h > PH - M - 14) { doc.addPage(); y = M; return true; } return false; };
+  const need = (h) => { if (y + h > PH - M - 14) { doc.addPage(); y = TOP; return true; } return false; };
   const setC = (c) => doc.setTextColor(c[0], c[1], c[2]);
-  const txt = (t, x, yy, o = {}) => { doc.setFont("helvetica", o.bold ? "bold" : "normal"); doc.setFontSize(o.size || 9); setC(o.color || [31, 41, 51]); doc.text(clean(t), x, yy); };
+  const txt = (t, x, yy, o = {}) => { doc.setFont("helvetica", o.bold ? "bold" : "normal"); doc.setFontSize(o.size || 9); setC(o.color || INK); doc.text(clean(t), x, yy); };
   const wrap = (t, w, size, bold) => { doc.setFont("helvetica", bold ? "bold" : "normal"); doc.setFontSize(size); return doc.splitTextToSize(clean(t), w); };
   const LH = 11;
   const photoList = (cid, ref) => Object.values(S.photos || {}).filter((r) => r.cid === cid && r.ref === ref && r.img).sort((a, b) => a.t - b.t);
@@ -23226,19 +23228,23 @@ function buildFullPdf(jsPDF, CL, S) {
     }
   }
 
-  txt("Safety Inspection: Completed Checklists", M, y + 14, { bold: true, size: 18 }); y += 28;
-  txt("Full record of responses (Yes / No / N/A) for review.", M, y + 4, { size: 10, color: [82, 96, 109] }); y += 20;
+  txt("DE OHSMS Quarterly Safety Inspection", M, y + 20, { bold: true, size: 22, color: TITLE }); y += 32;
+  doc.setDrawColor(DARK[0], DARK[1], DARK[2]); doc.setLineWidth(0.75); doc.line(M, y, M + CW, y); y += 16;
+  txt("Completed checklists: full record of responses (Yes / No / N/A).", M, y + 4, { size: 10 }); y += 16;
+  doc.setLineWidth(0.5); doc.setDrawColor(0);
   [["Date", fmtDate(meta.date)], ["School", meta.school], ["Conducted by", meta.by], ["Assisted by", meta.assist]].forEach(([k, v]) => {
-    txt(k, M, y + 9, { bold: true }); txt(v || "", M + 80, y + 9); y += 14;
+    doc.setFillColor(DARK[0], DARK[1], DARK[2]); doc.rect(M, y, 100, 18, "F"); doc.rect(M + 100, y, CW - 100, 18);
+    txt(k, M + 5, y + 12.5, { bold: true, size: 10, color: [255, 255, 255] }); txt(v || "", M + 106, y + 12.5, { size: 10 }); y += 18;
   });
-  y += 8;
+  y += 14;
+  txt("Summary", M, y + 12, { bold: true, size: 14, color: BLUE }); y += 22;
 
   // summary table
-  doc.setDrawColor(190); doc.setFillColor(230, 230, 230);
+  doc.setDrawColor(0); doc.setFillColor(BLUE[0], BLUE[1], BLUE[2]);
   const sx = [M, M + 190, M + 330, M + 380, M + 425, M + 470];
-  doc.rect(M, y, CW, 16, "F");
-  ["Checklist", "Status", "Yes", "No", "N/A", "Urgent"].forEach((h, i) => txt(h, sx[i] + 4, y + 11, { bold: true }));
-  y += 16;
+  doc.rect(M, y, CW, 18, "F");
+  ["Checklist", "Status", "Yes", "No", "N/A", "Urgent"].forEach((h, i) => txt(h, sx[i] + 4, y + 12.5, { bold: true, color: [255, 255, 255] }));
+  y += 18;
   const stats = CL.map((def) => {
     const c = (S.cl || {})[def.id] || { a: {}, d: {}, extra: [] };
     let yy = 0, n = 0, x = 0, total = 0, urgent = 0;
@@ -23255,8 +23261,8 @@ function buildFullPdf(jsPDF, CL, S) {
     const name = r.def.title + (r.c.room ? ` (${r.c.room})` : "");
     const lines = wrap(name, 180, 9);
     const h = Math.max(16, lines.length * LH + 5);
-    doc.setDrawColor(190); doc.rect(M, y, CW, h);
-    doc.setFont("helvetica", "normal"); doc.setFontSize(9); setC([31, 41, 51]);
+    doc.setDrawColor(0); doc.rect(M, y, CW, h);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(9); setC(INK);
     lines.forEach((l, i) => doc.text(l, sx[0] + 4, y + 11 + i * LH));
     txt(r.status, sx[1] + 4, y + 11);
     if (!r.c.na) { txt(String(r.y), sx[2] + 4, y + 11); txt(String(r.n), sx[3] + 4, y + 11, { bold: r.n > 0 }); txt(String(r.x), sx[4] + 4, y + 11); txt(String(r.urgent), sx[5] + 4, y + 11, { bold: r.urgent > 0, color: r.urgent ? [179, 38, 30] : undefined }); }
@@ -23266,29 +23272,29 @@ function buildFullPdf(jsPDF, CL, S) {
   const ANS = { y: ["Yes", [30, 110, 60]], n: ["No", [179, 38, 30]], x: ["N/A", [90, 100, 110]] };
   for (const r of stats) {
     if (r.status === "Not done") continue;
-    doc.addPage(); y = M;
-    txt(r.def.title + " Inspection Checklist" + (r.c.room ? `: ${r.c.room}` : ""), M, y + 14, { bold: true, size: 14 }); y += 24;
+    doc.addPage(); y = TOP;
+    txt(r.def.title + " Inspection Checklist" + (r.c.room ? `: ${r.c.room}` : ""), M, y + 16, { bold: true, size: 16, color: BLUE }); y += 28;
     if (r.c.na) { txt("Marked not applicable.", M, y + 10, { size: 10 }); continue; }
     for (let si = 0; si < r.def.sections.length; si++) {
       const sec = r.def.sections[si];
       need(40);
-      doc.setFillColor(230, 230, 230); doc.rect(M, y, CW, 16, "F");
-      txt(`${sec.num}. ${sec.title}`, M + 4, y + 11, { bold: true, size: 10 }); y += 16;
+      doc.setFillColor(BLUE[0], BLUE[1], BLUE[2]); doc.rect(M, y, CW, 18, "F");
+      txt(`${sec.num}. ${sec.title}`, M + 5, y + 12.5, { bold: true, size: 10, color: [255, 255, 255] }); y += 18;
       for (let ii = 0; ii < sec.items.length; ii++) {
         const it = sec.items[ii], k = si + "-" + ii, v = (r.c.a || {})[k], d = (r.c.d || {})[k] || {};
         const il = wrap(it.text, itemW, 9);
         const extra = [];
         if (v === "n") {
           if (d.urgent) extra.push(["URGENT: escalate to principal", true, [179, 38, 30]]);
-          if ((d.note || "").trim()) wrap("Finding: " + d.note, CW - 38, 8.5).forEach((l) => extra.push([l, false, [31, 41, 51]]));
-          if ((d.fix || "").trim()) wrap("Solution: " + d.fix, CW - 38, 8.5).forEach((l) => extra.push([l, false, [31, 41, 51]]));
+          if ((d.note || "").trim()) wrap("Finding: " + d.note, CW - 38, 8.5).forEach((l) => extra.push([l, false, INK]));
+          if ((d.fix || "").trim()) wrap("Solution: " + d.fix, CW - 38, 8.5).forEach((l) => extra.push([l, false, INK]));
         }
         const h = Math.max(il.length * LH, LH) + extra.length * LH + 6;
         need(h);
         if (v === "n") { doc.setFillColor(253, 236, 234); doc.rect(M, y, CW, h, "F"); }
-        doc.setDrawColor(210); doc.line(M, y + h, M + CW, y + h);
+        doc.setDrawColor(0); doc.line(M, y + h, M + CW, y + h);
         txt(it.ref, col.ref + 2, y + 11, { bold: true, size: 8.5 });
-        doc.setFont("helvetica", "normal"); doc.setFontSize(9); setC([31, 41, 51]);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(9); setC(INK);
         il.forEach((l, i) => doc.text(l, col.item, y + 11 + i * LH));
         const a = ANS[v] || ["-", [150, 150, 150]];
         txt(a[0], col.ans, y + 11, { bold: true, size: 10, color: a[1] });
@@ -23302,19 +23308,24 @@ function buildFullPdf(jsPDF, CL, S) {
     }
     const ex = (r.c.extra || []).filter((e) => ((e.where || "") + (e.note || "") + (e.fix || "")).trim());
     if (ex.length) {
-      need(40); doc.setFillColor(230, 230, 230); doc.rect(M, y, CW, 16, "F"); txt("Other hazards noted", M + 4, y + 11, { bold: true, size: 10 }); y += 16;
+      need(40); doc.setFillColor(BLUE[0], BLUE[1], BLUE[2]); doc.rect(M, y, CW, 18, "F"); txt("Other hazards noted", M + 5, y + 12.5, { bold: true, size: 10, color: [255, 255, 255] }); y += 18;
       ex.forEach((e) => {
         const ls = []; if (e.urgent) ls.push("URGENT: escalate to principal");
         if (e.where) ls.push(...wrap("Location: " + e.where, CW - 8, 9)); if (e.note) ls.push(...wrap("Finding: " + e.note, CW - 8, 9)); if (e.fix) ls.push(...wrap("Solution: " + e.fix, CW - 8, 9));
         need(ls.length * LH + 8);
         ls.forEach((l, i) => txt(l, M + 4, y + 11 + i * LH, { color: i === 0 && e.urgent ? [179, 38, 30] : undefined, bold: i === 0 && e.urgent })); y += ls.length * LH + 8;
-        doc.setDrawColor(210); doc.line(M, y - 2, M + CW, y - 2);
+        doc.setDrawColor(0); doc.line(M, y - 2, M + CW, y - 2);
         const pl = photoList(r.def.id, "x:" + e.id); if (pl.length) { drawPhotos(pl); y += 4; }
       });
     }
   }
   const n = doc.getNumberOfPages();
-  for (let i = 1; i <= n; i++) { doc.setPage(i); txt(`Page ${i} of ${n}`, PW / 2 - 25, PH - 18, { size: 8, color: [102, 102, 102] }); }
+  const banner = "data:image/png;base64," + REPORT_BANNER_PNG;
+  for (let i = 1; i <= n; i++) {
+    doc.setPage(i);
+    try { doc.addImage(banner, "PNG", 0, 0, PW, BANNER_H, "debanner"); } catch (e) {}
+    doc.setFont("helvetica", "italic"); doc.setFontSize(8); setC(INK); doc.text(`Page ${i} of ${n}`, PW / 2, PH - 18, { align: "center" });
+  }
   return doc.output("blob");
 }
 
@@ -23786,7 +23797,7 @@ function exportPdf(){
   if(exporting)return;
   if(typeof jspdf==='undefined'){toast('The PDF library did not load. Reload the page.');return}
   exporting=true;render(true);
-  try{var b=buildFullPdf(jspdf.jsPDF,CL,S);saveFile(fname('Completed checklists','pdf'),b);toast('PDF downloaded. In Safari, tap the download arrow to open or save it.')}catch(err){toast('Could not make the PDF: '+((err&&err.message)||'try again'))}
+  try{var b=buildFullPdf(jspdf.jsPDF,CL,S);saveFile(fname('DE OHSMS Quarterly Safety Inspection - Completed checklists','pdf'),b);toast('PDF downloaded. In Safari, tap the download arrow to open or save it.')}catch(err){toast('Could not make the PDF: '+((err&&err.message)||'try again'))}
   exporting=false;if(view==='report')render(true)}
 function exportDoc(){
   if(exporting)return;
