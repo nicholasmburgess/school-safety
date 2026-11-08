@@ -23306,8 +23306,8 @@ async function buildReportDoc(docx, CL, S, getPhoto) {
   const { Document, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType,
     HeadingLevel, ShadingType, ImageRun, ExternalHyperlink, Footer, Header, PageNumber, PageOrientation, VerticalAlign, BorderStyle,
     HorizontalPositionRelativeFrom, VerticalPositionRelativeFrom } = docx;
-  const FONT = "Calibri";
-  const W = [700, 3300, 5200, 3000, 1200, 900, 838]; // 15138 twips = landscape A4 with 1.5 cm margins
+  const FONT = "Arial"; // matches the Department checklist PDFs
+  const W = [650, 3000, 4800, 2900, 1450, 1200, 1138]; // 15138 twips = landscape A4 with 1.5 cm margins
   const TOTAL = W.reduce((a, b) => a + b, 0);
   const meta = S.meta || {};
   const fmtDate = (iso) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || ""); return m ? `${m[3]}/${m[2]}/${m[1]}` : (iso || ""); };
@@ -23315,7 +23315,7 @@ async function buildReportDoc(docx, CL, S, getPhoto) {
   const p = (text, o = {}) => new Paragraph({
     alignment: o.align, keepNext: o.keepNext,
     spacing: { before: o.before || 0, after: o.after === undefined ? 60 : o.after },
-    children: [new TextRun({ text: String(text), bold: o.bold, italics: o.italics, size: o.size || 18, color: o.color, font: FONT })],
+    children: [new TextRun({ text: String(text), bold: o.bold, italics: o.italics, size: o.size || 19, color: o.color, font: FONT })],
   });
   const lines = (t, o) => String(t || "").split(/\r?\n/).filter((x) => x.trim() !== "").map((x) => p(x, o));
   const cell = (children, w, o = {}) => new TableCell({
@@ -23324,16 +23324,16 @@ async function buildReportDoc(docx, CL, S, getPhoto) {
     margins: { top: 60, bottom: 60, left: 90, right: 90 },
     children: children.length ? children : [p("")],
   });
-  const line = { style: BorderStyle.SINGLE, size: 4, color: "999999" };
+  const line = { style: BorderStyle.SINGLE, size: 4, color: "000000" };
   const borders = { top: line, bottom: line, left: line, right: line, insideHorizontal: line, insideVertical: line };
   const table = (widths, rows) => new Table({ width: { size: widths.reduce((a, b) => a + b, 0), type: WidthType.DXA }, columnWidths: widths, borders, rows });
   const heading = (text, level, o = {}) => new Paragraph({
     heading: level, keepNext: true, spacing: { before: o.before === undefined ? 240 : o.before, after: 100 },
-    children: [new TextRun({ text, bold: true, font: FONT, color: "1F2933", size: o.size })],
+    children: [new TextRun({ text, bold: true, font: FONT, color: "004EA8", size: o.size })],
   });
   const headRow = (labels, widths) => new TableRow({
     tableHeader: true, cantSplit: true,
-    children: labels.map((l, i) => cell([p(l, { bold: true, after: 0 })], widths[i], { fill: "D9D9D9" })),
+    children: labels.map((l, i) => cell([p(l, { bold: true, color: "FFFFFF", after: 0 })], widths[i], { fill: "004EA8" })),
   });
 
   const hasExtra = (x) => ((x.where || "") + (x.note || "") + (x.fix || "")).trim() !== "" || photosFor(x.cid, "x:" + x.id).length > 0;
@@ -23409,12 +23409,13 @@ async function buildReportDoc(docx, CL, S, getPhoto) {
   const urgentCount = active.reduce((a, r) => a + r.urgent, 0);
 
   const children = [];
-  children.push(new Paragraph({ spacing: { after: 40 }, children: [new TextRun({ text: "DE OHSMS Quarterly Safety Inspection", bold: true, size: 40, font: FONT, color: "1F2933" })] }));
-  children.push(p("Summary of items found below standard, for discussion and action.", { size: 20, color: "52606D", after: 160 }));
+  children.push(new Paragraph({ spacing: { after: 120 }, border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: "004C97", space: 8 } },
+    children: [new TextRun({ text: "DE OHSMS Quarterly Safety Inspection", bold: true, size: 48, font: FONT, color: "2E74B5" })] }));
+  children.push(p("Summary of items found below standard, for discussion and action.", { size: 20, before: 60, after: 200 }));
 
   const infoW = [2400, 12738];
   const info = [["Date", fmtDate(meta.date)], ["School", meta.school || ""], ["Conducted by", meta.by || ""], ["Assisted by", meta.assist || ""]];
-  children.push(table(infoW, info.map(([k, v]) => new TableRow({ children: [cell([p(k, { bold: true, after: 0 })], infoW[0], { fill: "EDEDED" }), cell([p(v, { after: 0 })], infoW[1])] }))));
+  children.push(table(infoW, info.map(([k, v]) => new TableRow({ children: [cell([p(k, { bold: true, color: "FFFFFF", after: 0 })], infoW[0], { fill: "004C97" }), cell([p(v, { after: 0 })], infoW[1])] }))));
 
   children.push(heading("Summary", HeadingLevel.HEADING_2, { size: 28 }));
   children.push(p(exceptionCount
@@ -23483,7 +23484,7 @@ async function buildReportDoc(docx, CL, S, getPhoto) {
     sections: [{
       properties: { page: { size: { width: 11906, height: 16838, orientation: PageOrientation.LANDSCAPE }, margin: { top: 1750, bottom: 850, left: 850, right: 850, header: 0 } } },
       headers: { default: new Header({ children: [new Paragraph({ children: [bannerRun()] })] }) },
-      footers: { default: new Footer({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ children: ["Page ", PageNumber.CURRENT, " of ", PageNumber.TOTAL_PAGES], size: 16, color: "666666", font: FONT })] })] }) },
+      footers: { default: new Footer({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ children: ["Page ", PageNumber.CURRENT, " of ", PageNumber.TOTAL_PAGES], size: 16, italics: true, font: FONT })] })] }) },
       children,
     }],
   });
