@@ -23761,7 +23761,7 @@ function exportDoc(){
   if(typeof docx==='undefined'){toast('The Word library did not load. Reload the page.');return}
   exporting=true;render(true);
   buildReportDoc(docx,CL,S,getPhoto).then(function(doc){return docx.Packer.toBlob(doc)}).then(function(blob){
-    saveFile(fname('Safety inspection','docx'),blob);toast('Report downloaded. In Safari, tap the download arrow to open or save it.')}).catch(function(err){
+    saveFile(fname('DE OHSMS Quarterly Safety Inspection','docx'),blob);toast('Report downloaded. In Safari, tap the download arrow to open or save it.')}).catch(function(err){
     toast('Could not make the report: '+((err&&err.message)||'try again'))}).then(function(){exporting=false;if(view==='report')render(true)})}
 
 function newInspection(){
